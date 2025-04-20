@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Voice Circle Animation</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100dvh;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .circle-stack {
+            position: relative;
+            width: 300px;
+            height: 300px;
+        }
+        
+        .circle {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            top: 0;
+            left: 0;
+            transform-origin: center;
+            transition: all 0.3s ease-out;
+            will-change: transform, border-radius;
+        }
+        
+        .top-circle {
+            background: rgba(30, 30, 30, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            transition: opacity 0.8s cubic-bezier(0.165, 0.84, 0.44, 1);
+            box-shadow: 0 0 0 0 rgba(100, 220, 255, 0);
+        }
+        
+        .top-circle.pulsing {
+            animation: pulseGlow 3s infinite cubic-bezier(0.445, 0.05, 0.55, 0.95);
+        }
+        
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 0 0 rgba(100, 220, 255, 0.3); }
+            50% { box-shadow: 0 0 0 20px rgba(100, 220, 255, 0.1); }
+            100% { box-shadow: 0 0 0 0 rgba(100, 220, 255, 0); }
+        }
+        
+        .top-circle svg {
+            width: 80px;
+            height: 80px;
+        }
+        
+        .blue-circle-1 { background: rgba(0, 180, 255, 0.5); z-index: 9; }
+        .blue-circle-2 { background: rgba(100, 220, 255, 0.4); z-index: 8; }
+        .blue-circle-3 { background: rgba(0, 150, 200, 0.45); z-index: 7; }
+        .blue-circle-4 { background: rgba(0, 120, 180, 0.4); z-index: 6; }
+        .blue-circle-5 { background: rgba(0, 200, 220, 0.35); z-index: 5; }
+        .blue-circle-6 { background: rgba(150, 255, 180, 0.3); z-index: 4; }
+        
+        .controls {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        button {
+            background: rgba(30, 30, 30, 0.9);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 500;
+            margin: 0 8px;
+            transition: all 0.3s;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+        
+        button:hover {
+            background: rgba(50, 50, 50, 0.9);
+            transform: translateY(-2px);
+        }
+        
+        .status {
+            margin-top: 12px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="circle-stack">
+            <div class="circle top-circle pulsing" id="topCircle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+            </div>
+            <div class="circle blue-circle-1" id="circle1"></div>
+            <div class="circle blue-circle-2" id="circle2"></div>
+            <div class="circle blue-circle-3" id="circle3"></div>
+            <div class="circle blue-circle-4" id="circle4"></div>
+            <div class="circle blue-circle-5" id="circle5"></div>
+            <div class="circle blue-circle-6" id="circle6"></div>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn">Start Listening</button>
+            <button id="stopBtn" disabled>Stop</button>
+            <div class="status" id="status">Click "Start Listening" to begin</div>
+        </div>
+    </div>
+
+    <script>
+        // Audio context and elements
+        let audioContext;
+        let analyser;
+        let microphone;
+        let isListening = false;
+        let animationId;
+        
+        // Circle elements
+        const topCircle = document.getElementById('topCircle');
+        const circles = [
+            document.getElementById('circle1'),
+            document.getElementById('circle2'),
+            document.getElementById('circle3'),
+            document.getElementById('circle4'),
+            document.getElementById('circle5'),
+            document.getElementById('circle6')
+        ];
+        
+        // DOM elements
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusEl = document.getElementById('status');
+        
+        // Initialize
+        function init() {
+            startBtn.addEventListener('click', startListening);
+            stopBtn.addEventListener('click', stopListening);
+            
+            // Start animation loop
+            animate();
+        }
+        
+        // Start listening to microphone
+        async function startListening() {
+            try {
+                // Close previous audio context if exists
+                if (audioContext) {
+                    await audioContext.close();
+                }
+                
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 128;
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+                
+                isListening = true;
+                statusEl.textContent = "Listening... Speak now!";
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+                // Fade out top circle and stop pulsing
+                topCircle.style.opacity = '0';
+                topCircle.classList.remove('pulsing');
+                
+            } catch (err) {
+                console.error('Error accessing microphone:', err);
+                statusEl.textContent = "Error accessing microphone";
+                // Reset state on error
+                isListening = false;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+        
+        // Stop listening
+        function stopListening() {
+            if (microphone) {
+                microphone.disconnect();
+                if (microphone.mediaStream) {
+                    microphone.mediaStream.getTracks().forEach(track => track.stop());
+                }
+            }
+            
+            isListening = false;
+            statusEl.textContent = "Stopped listening";
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            
+            // Fade in top circle and start pulsing
+            topCircle.style.opacity = '1';
+            topCircle.classList.add('pulsing');
+            
+            // Reset all circles
+            circles.forEach(circle => {
+                circle.style.transform = 'scale(1)';
+                circle.style.borderRadius = '50%';
+            });
+        }
+        
+        // Animation loop
+        function animate() {
+            if (isListening) {
+                updateCircles();
+            }
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        // Update circles based on audio input
+        function updateCircles() {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+            
+            // Calculate overall energy
+            let totalEnergy = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                totalEnergy += dataArray[i];
+            }
+            const normalizedEnergy = totalEnergy / (bufferLength * 255);
+            
+            // Apply shape distortions without changing size
+            circles.forEach((circle, index) => {
+                const freqIndex = Math.floor(index * bufferLength / circles.length);
+                const energy = dataArray[freqIndex] / 255;
+                const combinedEnergy = (energy + normalizedEnergy) / 2;
+                
+                // Time-based variations for organic movement
+                const time = Date.now() * 0.002;
+                const noise1 = Math.sin(time * 3 + index) * 0.2;
+                const noise2 = Math.cos(time * 2.5 + index * 2) * 0.2;
+                
+                // Apply only shape distortions (no scaling)
+                circle.style.transform = 'scale(1)';
+                circle.style.borderRadius = `
+                    ${50 - (combinedEnergy * 24)}% 
+                    ${50 + (noise1 * 40)}% 
+                    ${50 + (combinedEnergy * 20)}% 
+                    ${50 - (noise2 * 30)}%
+                `;
+            });
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+      </html>
