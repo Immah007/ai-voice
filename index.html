@@ -28,14 +28,16 @@
         }
         
         .circle-stack {
+            box-sizing: content-box;
             position: relative;
             width: 400px;
             height: 400px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background:red;
-            padding: 25px;
+            background: green;
+            padding: 50px;
+            
         }
         
         .circle {
@@ -48,7 +50,7 @@
             transform-origin: centerss;
             transition: all 0.3s ease-out;
             will-change: transform, border-radius;
-            transform: translate(50px, -50px);
+            
         }
         
         .top-circle {
